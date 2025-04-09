@@ -1,7 +1,7 @@
 {
-  "name": "siyuan-hoarder",
-  "author": "Vanessa",
-  "url": "https://github.com/siyuan-note/plugin-sample",
+  "name": "siyuan-karakeep",
+  "author": "Pablo Caño",
+  "url": "https://github.com/pablocpas/siyuan-karakeep",
   "version": "0.4.0",
   "minAppVersion": "3.1.27",
   "backends": [
@@ -21,12 +21,12 @@
     "desktop-window"
   ],
   "displayName": {
-    "default": "Plugin Sample",
-    "zh_CN": "插件示例"
+    "default": "Karakeep Sync",
+    "zh_CN": "Karakeep 同步"
   },
   "description": {
-    "default": "This is a plugin sample",
-    "zh_CN": "这是一个插件示例"
+    "default": "Synchronize Karakeep bookmarks to SiYuan notebooks",
+    "zh_CN": "将 Karakeep 书签同步到思源笔记本"
   },
   "readme": {
     "default": "README.md",
@@ -41,18 +41,18 @@
     ]
   },
   "keywords": [
-    "sample",
-    "示例"
+    "karakeep",
+    "bookmark",
+    "sync",
+    "书签",
+    "同步"
   ],
-
   "commands": [
     {
-        "langKey": "syncHoarderBookmarks",
-        "hotkey": "",
-        "global": false
+      "langKey": "syncKarakeepBookmarks",
+      "hotkey": "",
+      "global": false
     }
-],
-"settings": true
-
-
+  ],
+  "settings": true
 }

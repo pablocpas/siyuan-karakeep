@@ -62,7 +62,7 @@ export default class HoarderSyncPlugin extends Plugin {
         await this.loadSettings();
         this.setupSettingsUI();
         this.addCommand({
-            langKey: "syncHoarderBookmarks",
+            langKey: "syncKarakeepBookmarks",
             hotkey: "",
             callback: async () => {
                 if (this.isSyncing) {
