@@ -1,5 +1,5 @@
 {
-  "name": "plugin-sample",
+  "name": "siyuan-hoarder",
   "author": "Vanessa",
   "url": "https://github.com/siyuan-note/plugin-sample",
   "version": "0.4.0",
@@ -43,5 +43,16 @@
   "keywords": [
     "sample",
     "示例"
-  ]
+  ],
+
+  "commands": [
+    {
+        "langKey": "syncHoarderBookmarks",
+        "hotkey": "",
+        "global": false
+    }
+],
+"settings": true
+
+
 }
