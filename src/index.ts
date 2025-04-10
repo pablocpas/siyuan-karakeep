@@ -11,6 +11,9 @@ import {
     // Otros imports no usados explícitamente aquí pero disponibles:
     // confirm, Dialog, Menu,
 } from "siyuan";
+
+import TurndownService from 'turndown'; // <-- Añadir esta línea
+
 import "./index.scss"; // Si tienes estilos
 
 // --- Interfaces de Hoarder (Sin cambios) ---
@@ -525,86 +528,119 @@ export default class HoarderSyncPlugin extends Plugin {
         }
 
         // formatBookmarkAsMarkdown: Maneja fallo de downloadAsset (sin cambios respecto a la versión anterior revisada)
-        async formatBookmarkAsMarkdown(bookmark: HoarderBookmark, title: string): Promise<string> {
-            const url = bookmark.content.type === "link" ? bookmark.content.url : bookmark.content.sourceUrl;
-            const description = bookmark.content.type === "link" ? bookmark.content.description : bookmark.content.text;
-            const getHoarderAssetUrl = (assetId: string): string => {
-                const baseUrl = this.settings.apiEndpoint.replace(/\/api\/v1\/?$/, "");
-                return `${baseUrl}/assets/${assetId}`;
-            };
+    // formatBookmarkAsMarkdown: Añadido manejo de htmlContent con Turndown
+    async formatBookmarkAsMarkdown(bookmark: HoarderBookmark, title: string): Promise<string> {
+        const url = bookmark.content.type === "link" ? bookmark.content.url : bookmark.content.sourceUrl;
+        const description = bookmark.content.type === "link" ? bookmark.content.description : bookmark.content.text;
+        const htmlContent = bookmark.content.htmlContent; // Obtener el contenido HTML
 
-            let content = `# ${title}\n\n`;
-            let assetMarkdown = "";
+        // Crear una instancia del servicio de conversión (puedes optimizar creando una sola instancia en la clase si lo prefieres)
+        const turndownService = new TurndownService({
+            headingStyle: 'atx', // Usa # para encabezados
+            codeBlockStyle: 'fenced', // Usa ``` para bloques de código
+            emDelimiter: '*', // Usa * para énfasis
+            strongDelimiter: '**', // Usa ** para negrita
+        });
 
-            if (this.settings.downloadAssets) {
-                let assetToDownloadUrl: string | undefined;
-                let assetIdToUse: string | undefined;
+        const getHoarderAssetUrl = (assetId: string): string => {
+            const baseUrl = this.settings.apiEndpoint.replace(/\/api\/v1\/?$/, "");
+            return `${baseUrl}/assets/${assetId}`;
+        };
 
-                if (bookmark.content.type === "asset" && bookmark.content.assetType === "image" && bookmark.content.assetId) {
-                    assetToDownloadUrl = getHoarderAssetUrl(bookmark.content.assetId);
-                    assetIdToUse = bookmark.content.assetId;
-                } else if (bookmark.content.type === "link" && bookmark.content.imageAssetId) {
-                    assetToDownloadUrl = getHoarderAssetUrl(bookmark.content.imageAssetId);
-                    assetIdToUse = bookmark.content.imageAssetId;
-                } else if (bookmark.content.type === "link" && bookmark.content.screenshotAssetId) {
-                     assetToDownloadUrl = getHoarderAssetUrl(bookmark.content.screenshotAssetId);
-                     assetIdToUse = bookmark.content.screenshotAssetId;
+        let content = `# ${title}\n\n`;
+        let assetMarkdown = "";
+
+        // --- Lógica de Assets (sin cambios) ---
+        if (this.settings.downloadAssets) {
+            // ... (código de descarga de assets como estaba) ...
+            let assetToDownloadUrl: string | undefined;
+            let assetIdToUse: string | undefined;
+
+            if (bookmark.content.type === "asset" && bookmark.content.assetType === "image" && bookmark.content.assetId) {
+                assetToDownloadUrl = getHoarderAssetUrl(bookmark.content.assetId);
+                assetIdToUse = bookmark.content.assetId;
+            } else if (bookmark.content.type === "link" && bookmark.content.imageAssetId) {
+                assetToDownloadUrl = getHoarderAssetUrl(bookmark.content.imageAssetId);
+                assetIdToUse = bookmark.content.imageAssetId;
+            } else if (bookmark.content.type === "link" && bookmark.content.screenshotAssetId) {
+                 assetToDownloadUrl = getHoarderAssetUrl(bookmark.content.screenshotAssetId);
+                 assetIdToUse = bookmark.content.screenshotAssetId;
+            }
+
+            if (assetToDownloadUrl && assetIdToUse) {
+                const siyuanAssetPath = await this.downloadAsset(assetToDownloadUrl, assetIdToUse, title);
+                if (siyuanAssetPath) {
+                    assetMarkdown = `![${title || 'asset'}](${siyuanAssetPath})\n\n`;
+                } else {
+                    assetMarkdown = `[Failed to download asset: View on Hoarder](${assetToDownloadUrl})\n\n`;
                 }
-
-                if (assetToDownloadUrl && assetIdToUse) {
-                    const siyuanAssetPath = await this.downloadAsset(assetToDownloadUrl, assetIdToUse, title);
-                    if (siyuanAssetPath) {
-                        assetMarkdown = `![${title || 'asset'}](${siyuanAssetPath})\n\n`;
-                    } else {
-                        assetMarkdown = `[Failed to download asset: View on Hoarder](${assetToDownloadUrl})\n\n`;
-                    }
-                } else if (bookmark.content.imageUrl) {
-                    assetMarkdown = `![${title || 'image'}](${bookmark.content.imageUrl})\n\n`;
-                }
-            } else {
-                let externalImageUrl: string | undefined;
-                 if (bookmark.content.type === "asset" && bookmark.content.assetType === "image" && bookmark.content.assetId) {
-                     externalImageUrl = getHoarderAssetUrl(bookmark.content.assetId);
-                 } else if (bookmark.content.type === "link" && bookmark.content.imageAssetId) {
-                     externalImageUrl = getHoarderAssetUrl(bookmark.content.imageAssetId);
-                 } else if (bookmark.content.type === "link" && bookmark.content.screenshotAssetId) {
-                     externalImageUrl = getHoarderAssetUrl(bookmark.content.screenshotAssetId);
-                 } else if (bookmark.content.imageUrl) {
-                     externalImageUrl = bookmark.content.imageUrl;
-                 }
-
-                if (externalImageUrl) {
-                    assetMarkdown = `![${title || 'image'}](${externalImageUrl})\n\n`;
-                }
+            } else if (bookmark.content.imageUrl) {
+                assetMarkdown = `![${title || 'image'}](${bookmark.content.imageUrl})\n\n`;
             }
+        } else {
+            // ... (código de enlace externo de assets como estaba) ...
+            let externalImageUrl: string | undefined;
+             if (bookmark.content.type === "asset" && bookmark.content.assetType === "image" && bookmark.content.assetId) {
+                 externalImageUrl = getHoarderAssetUrl(bookmark.content.assetId);
+             } else if (bookmark.content.type === "link" && bookmark.content.imageAssetId) {
+                 externalImageUrl = getHoarderAssetUrl(bookmark.content.imageAssetId);
+             } else if (bookmark.content.type === "link" && bookmark.content.screenshotAssetId) {
+                 externalImageUrl = getHoarderAssetUrl(bookmark.content.screenshotAssetId);
+             } else if (bookmark.content.imageUrl) {
+                 externalImageUrl = bookmark.content.imageUrl;
+             }
 
-            content += assetMarkdown;
+            if (externalImageUrl) {
+                assetMarkdown = `![${title || 'image'}](${externalImageUrl})\n\n`;
+            }
+        }
+        content += assetMarkdown;
+        // --- Fin Lógica de Assets ---
 
-            if (url && bookmark.content.type !== "asset") {
-                content += `**URL:** [${url}](${url})\n\n`;
-            }
-            if (bookmark.summary) {
-                content += `## Summary\n\n${bookmark.summary.trim()}\n\n`;
-            }
-            if (description) {
-                content += `## Description\n\n${description.trim()}\n\n`;
-            }
-            if (bookmark.tags.length > 0) {
-                content += `**Tags:** ${bookmark.tags.map(t => t.name).join(', ')}\n\n`;
-            }
-            content += `## Notes\n\n${bookmark.note || ""}\n\n`;
+        if (url && bookmark.content.type !== "asset") {
+            content += `**URL:** [${url}](${url})\n\n`;
+        }
+        if (bookmark.summary) {
+            content += `## Summary\n\n${bookmark.summary.trim()}\n\n`;
+        }
+        if (description) {
+            content += `## Description\n\n${description.trim()}\n\n`;
+        }
+        if (bookmark.tags.length > 0) {
+            content += `**Tags:** ${bookmark.tags.map(t => t.name).join(', ')}\n\n`;
+        }
+        content += `## Notes\n\n${bookmark.note || ""}\n\n`;
 
+        // --- AÑADIR CONTENIDO HTML CONVERTIDO ---
+        if (htmlContent && htmlContent.trim()) {
+            console.log(`[Debug HTML] Found htmlContent for bookmark ${bookmark.id}. Attempting conversion...`);
             try {
-                 const hoarderBaseUrl = new URL(this.settings.apiEndpoint).origin;
-                 content += `----\n[View in Hoarder](${hoarderBaseUrl}/dashboard/preview/${bookmark.id})`;
-            } catch (e) {
-                 console.warn("Could not determine Hoarder base URL from endpoint:", this.settings.apiEndpoint);
-                 content += `----\nHoarder ID: ${bookmark.id}`;
+                const convertedMarkdown = turndownService.turndown(htmlContent);
+                if (convertedMarkdown && convertedMarkdown.trim()) {
+                    content += `## Content Snapshot\n\n${convertedMarkdown.trim()}\n\n`;
+                    console.log(`[Debug HTML] Conversion successful for bookmark ${bookmark.id}.`);
+                } else {
+                    console.log(`[Debug HTML] Conversion resulted in empty markdown for bookmark ${bookmark.id}.`);
+                }
+            } catch (e: any) {
+                console.error(`[Debug HTML] Error converting htmlContent for bookmark ${bookmark.id}:`, e.message || e);
+                // Opcional: añadir un marcador de error en la nota
+                // content += `## Content Snapshot\n\nError converting HTML content.\n\n`;
             }
+        }
+        // --- FIN CONTENIDO HTML ---
 
-            return content;
+        // Link a Hoarder (sin cambios)
+        try {
+             const hoarderBaseUrl = new URL(this.settings.apiEndpoint).origin;
+             content += `----\n[View in Hoarder](${hoarderBaseUrl}/dashboard/preview/${bookmark.id})`;
+        } catch (e) {
+             console.warn("Could not determine Hoarder base URL from endpoint:", this.settings.apiEndpoint);
+             content += `----\nHoarder ID: ${bookmark.id}`;
         }
 
+        return content;
+    }
         // setSiYuanAttributes: Usa fetchSyncPost (sin cambios respecto a la versión anterior revisada)
         async setSiYuanAttributes(docRootId: string, bookmark: HoarderBookmark, title: string) {
             const attrs: IObject = {
