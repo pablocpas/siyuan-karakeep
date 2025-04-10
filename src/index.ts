@@ -322,7 +322,7 @@ export default class KarakeepSyncPlugin extends Plugin {
 
         try {
             // 3. Check if Document Exists in SiYuan
-            const existingDocId = await this.findExistingDocumentId(notebookId, safeDocPath);
+            const existingDocId = await this.findExistingDocumentIdByKarakeepId(notebookId, bookmark.id);
 
             if (existingDocId) {
                 // 4. Document Exists: Decide whether to update
@@ -345,32 +345,50 @@ export default class KarakeepSyncPlugin extends Plugin {
         }
     }
 
-    /**
-     * Finds the SiYuan document ID for a given notebook and HPath.
-     * Returns the ID string if found, null otherwise.
-     */
-    private async findExistingDocumentId(notebookId: string, hPath: string): Promise<string | null> {
-        this.logInfo(`Checking existence via API for path: ${hPath} in notebook ${notebookId}`);
+    private async findExistingDocumentIdByKarakeepId(notebookId: string, karakeepBookmarkId: string): Promise<string | null> {
+        // El nombre exacto del atributo como se almacena en la tabla 'attributes'
+        const targetAttributeName = ATTR_KARAKEEP_ID; // Should be "custom-karakeep-id"
+
+        // Construir la consulta SQL usando JOIN
+        // 1. Busca en 'attributes' por nombre y valor.
+        // 2. Une con 'blocks' usando 'block_id'.
+        // 3. Filtra en 'blocks' por tipo 'd' (documento) y 'box' (notebook).
+        const sqlQuery = `
+            SELECT b.id
+            FROM blocks AS b
+            JOIN attributes AS a ON b.id = a.block_id
+            WHERE
+                b.box = '${notebookId}' AND
+                b.type = 'd' AND
+                a.name = '${targetAttributeName}' AND
+                a.value = '${karakeepBookmarkId}'
+            LIMIT 1
+        `;
+
+        this.logInfo(`Searching for existing doc via SQL (JOIN) for karakeep ID ${karakeepBookmarkId} in notebook ${notebookId}`);
+        // this.logInfo(`Executing SQL: ${sqlQuery.replace(/\s+/g, ' ').trim()}`); // Log SQL limpio
+
         try {
-            const result = await fetchSyncPost(API_GET_IDS_BY_HPATH, {
-                notebook: notebookId,
-                path: hPath,
+            const result = await fetchSyncPost<{ id: string }[]>('/api/query/sql', {
+                stmt: sqlQuery,
             });
 
+            // Analizar resultado
             if (result.code === 0 && result.data && Array.isArray(result.data) && result.data.length > 0) {
-                this.logInfo(`Found existing document ID via API: ${result.data[0]}`);
-                return result.data[0]; // Return the first ID found
+                const foundId = result.data[0].id;
+                this.logInfo(`Found existing document ID via SQL (JOIN): ${foundId} for karakeep ID ${karakeepBookmarkId}`);
+                return foundId;
             } else if (result.code === 0) {
-                this.logInfo(`No document found via API for path ${hPath}.`);
+                this.logInfo(`No document found via SQL (JOIN) for karakeep ID ${karakeepBookmarkId}.`);
                 return null;
             } else {
-                // API returned an error code
-                this.logWarn(`API ${API_GET_IDS_BY_HPATH} failed [${result.code}]: ${result.msg} for path ${hPath}`);
-                return null; // Treat API error as 'not found' for safety, but log it
+                // Error de la API SQL
+                this.logError(`SQL query (JOIN) failed [${result.code}]: ${result.msg} for karakeep ID ${karakeepBookmarkId}`);
+                return null; // Tratar error como no encontrado
             }
         } catch (error: any) {
-            this.logError(`Network error during API ${API_GET_IDS_BY_HPATH} check for path ${hPath}:`, error);
-            throw error; // Re-throw network errors as they might be critical
+            this.logError(`Network error during SQL query (JOIN) for karakeep ID ${karakeepBookmarkId}:`, error);
+            throw error; // Re-lanzar errores de red
         }
     }
 
