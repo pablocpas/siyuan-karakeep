@@ -16,10 +16,10 @@ import TurndownService from 'turndown';
 import "./index.scss";
 
 // --- Constantes ---
-const STORAGE_SETTINGS_KEY = "hoarder-sync-settings";
-const LOG_PREFIX = "[HoarderSync]";
-const ATTR_PREFIX = "custom-hoarder-";
-const ATTR_HOARDER_ID = `${ATTR_PREFIX}id`;
+const STORAGE_SETTINGS_KEY = "Karakeep-sync-settings";
+const LOG_PREFIX = "[KarakeepSync]";
+const ATTR_PREFIX = "custom-Karakeep-";
+const ATTR_KARAKEEP_ID = `${ATTR_PREFIX}id`;
 const ATTR_MODIFIED = `${ATTR_PREFIX}modified`;
 const BOOKMARK_FETCH_LIMIT = 50;
 
@@ -32,14 +32,14 @@ const API_REMOVE_DOC_BY_ID = '/api/filetree/removeDocByID';
 const API_CREATE_DOC_WITH_MD = '/api/filetree/createDocWithMd';
 const API_UPLOAD_ASSET = '/api/asset/upload';
 
-// --- Interfaces Hoarder (Sin cambios) ---
-interface HoarderTag { id: string; name: string; attachedBy: "ai" | "human"; }
-interface HoarderBookmarkContent { type: "link" | "text" | "asset" | "unknown"; url?: string; title?: string; description?: string; imageUrl?: string; imageAssetId?: string; screenshotAssetId?: string; fullPageArchiveAssetId?: string; videoAssetId?: string; favicon?: string; htmlContent?: string; crawledAt?: string; text?: string; sourceUrl?: string; assetType?: "image" | "pdf"; assetId?: string; fileName?: string; }
-interface HoarderBookmark { id: string; createdAt: string; modifiedAt?: string; title: string | null; archived: boolean; favourited: boolean; taggingStatus: "success" | "failure" | "pending" | null; note: string | null; summary: string | null; tags: HoarderTag[]; content: HoarderBookmarkContent; }
-interface HoarderResponse { bookmarks: HoarderBookmark[]; total: number; nextCursor?: string; }
+// --- Interfaces Karakeep (Sin cambios) ---
+interface KarakeepTag { id: string; name: string; attachedBy: "ai" | "human"; }
+interface KarakeepBookmarkContent { type: "link" | "text" | "asset" | "unknown"; url?: string; title?: string; description?: string; imageUrl?: string; imageAssetId?: string; screenshotAssetId?: string; fullPageArchiveAssetId?: string; videoAssetId?: string; favicon?: string; htmlContent?: string; crawledAt?: string; text?: string; sourceUrl?: string; assetType?: "image" | "pdf"; assetId?: string; fileName?: string; }
+interface KarakeepBookmark { id: string; createdAt: string; modifiedAt?: string; title: string | null; archived: boolean; favourited: boolean; taggingStatus: "success" | "failure" | "pending" | null; note: string | null; summary: string | null; tags: KarakeepTag[]; content: KarakeepBookmarkContent; }
+interface KarakeepResponse { bookmarks: KarakeepBookmark[]; total: number; nextCursor?: string; }
 
 // --- Settings Interface & Defaults (Sin cambios) ---
-interface HoarderSyncSettings {
+interface KarakeepSyncSettings {
     apiKey: string;
     apiEndpoint: string;
     syncNotebookId: string | null;
@@ -52,9 +52,9 @@ interface HoarderSyncSettings {
     downloadAssets: boolean;
 }
 
-const DEFAULT_SETTINGS: HoarderSyncSettings = {
+const DEFAULT_SETTINGS: KarakeepSyncSettings = {
     apiKey: "",
-    apiEndpoint: "https://api.hoarder.app/api/v1",
+    apiEndpoint: "https://api.Karakeep.app/api/v1",
     syncNotebookId: null,
     syncIntervalMinutes: 60,
     lastSyncTimestamp: 0,
@@ -71,8 +71,8 @@ type ProcessResult = {
     message?: string; // Mensaje de error o detalle
 };
 
-export default class HoarderSyncPlugin extends Plugin {
-    public settings: HoarderSyncSettings;
+export default class KarakeepSyncPlugin extends Plugin {
+    public settings: KarakeepSyncSettings;
     private isSyncing: boolean = false;
     private syncIntervalId: number | null = null;
     private syncStatusElement: HTMLElement | null = null;
@@ -112,7 +112,7 @@ export default class HoarderSyncPlugin extends Plugin {
     // --- Settings Management ---
     private async loadSettings() {
         const loadedData = await this.loadData(STORAGE_SETTINGS_KEY);
-        const validSettings: Partial<HoarderSyncSettings> = {};
+        const validSettings: Partial<KarakeepSyncSettings> = {};
         if (loadedData) {
             for (const key in DEFAULT_SETTINGS) {
                 if (loadedData.hasOwnProperty(key)) {
@@ -125,7 +125,7 @@ export default class HoarderSyncPlugin extends Plugin {
     }
 
     private async saveSettings() {
-        const settingsToSave: Partial<HoarderSyncSettings> = {};
+        const settingsToSave: Partial<KarakeepSyncSettings> = {};
         for (const key in DEFAULT_SETTINGS) {
             if (this.settings.hasOwnProperty(key)) {
                 (settingsToSave as any)[key] = (this.settings as any)[key];
@@ -140,21 +140,21 @@ export default class HoarderSyncPlugin extends Plugin {
     // --- Command Registration ---
     private addCommands() {
         this.addCommand({
-            langKey: "syncHoarderBookmarks", // Usar camelCase para langKey es común
+            langKey: "syncKarakeepBookmarks", // Usar camelCase para langKey es común
             hotkey: "",
             callback: async () => {
                 if (this.isSyncing) {
                     showMessage(this.i18n.syncInProgress || "Sync is already in progress.", 3000, "info");
                     return;
                 }
-                showMessage(this.i18n.manualSyncStarting || "Starting manual Hoarder sync...");
+                showMessage(this.i18n.manualSyncStarting || "Starting manual Karakeep sync...");
                 const result = await this.runSyncCycle();
                 showMessage(result.message, result.success ? 4000 : 6000, result.success ? "info" : "error");
             },
             langText: { // Proporcionar textos para i18n
-                "en_US": "Sync Hoarder Bookmarks (One-Way)",
-                "zh_CN": "同步 Hoarder 书签（单向）", // Ejemplo Chino
-                "es_ES": "Sincronizar Marcadores Hoarder (Unidireccional)"
+                "en_US": "Sync Karakeep Bookmarks (One-Way)",
+                "zh_CN": "同步 Karakeep 书签（单向）", // Ejemplo Chino
+                "es_ES": "Sincronizar Marcadores Karakeep (Unidireccional)"
                 // Añadir otros idiomas si es necesario
             }
         });
@@ -177,7 +177,7 @@ export default class HoarderSyncPlugin extends Plugin {
                 this.logInfo("Skipping scheduled sync: previous sync still running.");
                 return;
             }
-            this.logInfo("Performing scheduled Hoarder sync...");
+            this.logInfo("Performing scheduled Karakeep sync...");
             const result = await this.runSyncCycle();
             this.logInfo("Scheduled sync finished.", result);
             // Opcional: Mostrar mensaje visual para sync programado
@@ -193,8 +193,8 @@ export default class HoarderSyncPlugin extends Plugin {
         }
     }
 
-    // --- Hoarder API Interaction ---
-    private async fetchBookmarks(cursor?: string): Promise<HoarderResponse> {
+    // --- Karakeep API Interaction ---
+    private async fetchBookmarks(cursor?: string): Promise<KarakeepResponse> {
         const endpoint = this.settings.apiEndpoint.replace(/\/$/, ""); // Ensure no trailing slash
         const apiUrl = `${endpoint}/bookmarks`;
         const queryParams = new URLSearchParams({
@@ -206,7 +206,7 @@ export default class HoarderSyncPlugin extends Plugin {
             queryParams.append("cursor", cursor);
         }
 
-        this.logInfo(`Fetching Hoarder bookmarks: ${apiUrl}?${queryParams.toString()}`);
+        this.logInfo(`Fetching Karakeep bookmarks: ${apiUrl}?${queryParams.toString()}`);
         try {
             const response = await fetch(`${apiUrl}?${queryParams.toString()}`, {
                 headers: {
@@ -216,12 +216,12 @@ export default class HoarderSyncPlugin extends Plugin {
             });
             if (!response.ok) {
                 const errorText = await response.text();
-                this.logError("Hoarder API Error:", response.status, errorText);
-                throw new Error(`Hoarder API request failed: ${response.status} ${errorText}`);
+                this.logError("Karakeep API Error:", response.status, errorText);
+                throw new Error(`Karakeep API request failed: ${response.status} ${errorText}`);
             }
-            return response.json() as Promise<HoarderResponse>;
+            return response.json() as Promise<KarakeepResponse>;
         } catch (error) {
-            this.logError("Error fetching bookmarks from Hoarder:", error);
+            this.logError("Error fetching bookmarks from Karakeep:", error);
             throw error; // Re-throw to be caught by the caller
         }
     }
@@ -230,11 +230,11 @@ export default class HoarderSyncPlugin extends Plugin {
 
     /**
      * Runs a full synchronization cycle.
-     * Fetches bookmarks from Hoarder and processes them.
+     * Fetches bookmarks from Karakeep and processes them.
      */
     public async runSyncCycle(): Promise<{ success: boolean; message: string }> {
         if (this.isSyncing) return { success: false, message: this.i18n.syncInProgress || "Sync already in progress." };
-        if (!this.settings.apiKey) return { success: false, message: this.i18n.apiKeyMissing || "Hoarder API key not configured." };
+        if (!this.settings.apiKey) return { success: false, message: this.i18n.apiKeyMissing || "Karakeep API key not configured." };
         if (!this.settings.syncNotebookId) return { success: false, message: this.i18n.notebookMissing || "Target SiYuan notebook not configured." };
 
         this.setSyncingState(true);
@@ -301,10 +301,10 @@ export default class HoarderSyncPlugin extends Plugin {
     }
 
     /**
-     * Processes a single Hoarder bookmark.
+     * Processes a single Karakeep bookmark.
      * Determines if it should be synced, creates or updates the SiYuan document.
      */
-    private async processBookmark(bookmark: HoarderBookmark, notebookId: string): Promise<ProcessResult> {
+    private async processBookmark(bookmark: KarakeepBookmark, notebookId: string): Promise<ProcessResult> {
         // 1. Apply Filters
         if (this.settings.excludeArchived && bookmark.archived) return { status: 'skipped_filtered' };
         if (this.settings.onlyFavorites && !bookmark.favourited) return { status: 'skipped_filtered' };
@@ -377,7 +377,7 @@ export default class HoarderSyncPlugin extends Plugin {
     /**
      * Checks if an existing SiYuan document should be updated based on settings and modification times.
      */
-    private async shouldUpdateDocument(docId: string, bookmark: HoarderBookmark): Promise<boolean> {
+    private async shouldUpdateDocument(docId: string, bookmark: KarakeepBookmark): Promise<boolean> {
         if (!this.settings.updateExistingFiles) {
             return false; // Update is disabled
         }
@@ -410,7 +410,7 @@ export default class HoarderSyncPlugin extends Plugin {
     /**
      * Creates a new document in SiYuan for the given bookmark.
      */
-    private async createSiYuanDocument(bookmark: HoarderBookmark, notebookId: string, title: string, path: string): Promise<ProcessResult> {
+    private async createSiYuanDocument(bookmark: KarakeepBookmark, notebookId: string, title: string, path: string): Promise<ProcessResult> {
         try {
             const markdownContent = await this.formatBookmarkAsMarkdown(bookmark, title);
             const createParams = { notebook: notebookId, path: path, markdown: markdownContent };
@@ -438,7 +438,7 @@ export default class HoarderSyncPlugin extends Plugin {
     /**
      * Updates an existing SiYuan document by deleting and recreating it.
      */
-    private async updateSiYuanDocument(existingDocId: string, bookmark: HoarderBookmark, notebookId: string, title: string, path: string): Promise<ProcessResult> {
+    private async updateSiYuanDocument(existingDocId: string, bookmark: KarakeepBookmark, notebookId: string, title: string, path: string): Promise<ProcessResult> {
         // 1. Delete the existing document
         try {
             this.logInfo(`Attempting to delete document ${existingDocId} for update (bookmark ${bookmark.id})`);
@@ -472,11 +472,11 @@ export default class HoarderSyncPlugin extends Plugin {
     /**
      * Sets the custom attributes on a SiYuan document block.
      */
-    private async setSiYuanAttributes(docRootId: string, bookmark: HoarderBookmark, title: string): Promise<void> {
+    private async setSiYuanAttributes(docRootId: string, bookmark: KarakeepBookmark, title: string): Promise<void> {
         const attrs: IObject = {
-            [ATTR_HOARDER_ID]: bookmark.id,
+            [ATTR_KARAKEEP_ID]: bookmark.id,
             [ATTR_MODIFIED]: bookmark.modifiedAt ? new Date(bookmark.modifiedAt).toISOString() : new Date(bookmark.createdAt).toISOString(),
-            title: title, // Also store the original Hoarder title (or derived)
+            title: title, // Also store the original Karakeep title (or derived)
             url: bookmark.content.type === 'link' ? bookmark.content.url : bookmark.content.sourceUrl || '',
             created: new Date(bookmark.createdAt).toISOString(),
             tags: bookmark.tags.map(t => t.name).join(', '),
@@ -493,7 +493,7 @@ export default class HoarderSyncPlugin extends Plugin {
         };
 
         try {
-            this.logInfo(`Setting attributes for doc ${docRootId} (Hoarder ID ${bookmark.id})`);
+            this.logInfo(`Setting attributes for doc ${docRootId} (Karakeep ID ${bookmark.id})`);
             const setResult = await fetchSyncPost(API_SET_BLOCK_ATTRS, { id: docRootId, attrs: attrs });
             if (setResult.code === 0) {
                 this.logInfo(`Successfully set attributes for doc ${docRootId}.`);
@@ -508,8 +508,8 @@ export default class HoarderSyncPlugin extends Plugin {
     /**
      * Generates a suitable title for the SiYuan document.
      */
-    private getBookmarkTitle(bookmark: HoarderBookmark): string {
-        // Prioritize Hoarder's explicit title
+    private getBookmarkTitle(bookmark: KarakeepBookmark): string {
+        // Prioritize Karakeep's explicit title
         if (bookmark.title && bookmark.title.trim()) return bookmark.title.trim();
 
         // Derive title from content if no explicit title
@@ -593,14 +593,14 @@ export default class HoarderSyncPlugin extends Plugin {
     }
 
     /**
-     * Formats a Hoarder bookmark into Markdown content for a SiYuan document.
+     * Formats a Karakeep bookmark into Markdown content for a SiYuan document.
      */
-    private async formatBookmarkAsMarkdown(bookmark: HoarderBookmark, title: string): Promise<string> {
+    private async formatBookmarkAsMarkdown(bookmark: KarakeepBookmark, title: string): Promise<string> {
         const url = bookmark.content.type === "link" ? bookmark.content.url : bookmark.content.sourceUrl;
         const description = bookmark.content.type === "link" ? bookmark.content.description : bookmark.content.text;
         const htmlContent = bookmark.content.htmlContent;
 
-        const getHoarderAssetUrl = (assetId: string): string => {
+        const getKarakeepAssetUrl = (assetId: string): string => {
             try {
                 // Intenta construir la URL base desde el endpoint de la API
                  const baseUrl = new URL(this.settings.apiEndpoint);
@@ -608,7 +608,7 @@ export default class HoarderSyncPlugin extends Plugin {
                  const origin = baseUrl.origin;
                  return `${origin}/assets/${assetId}`;
             } catch (e) {
-                 this.logWarn("Could not parse Hoarder API endpoint to build asset URL:", this.settings.apiEndpoint);
+                 this.logWarn("Could not parse Karakeep API endpoint to build asset URL:", this.settings.apiEndpoint);
                  // Fallback a una ruta relativa o un placeholder si no se puede parsear
                  return `/assets/${assetId}`; // O manejar de otra forma
             }
@@ -624,14 +624,14 @@ export default class HoarderSyncPlugin extends Plugin {
 
             // Prioritize specific asset types if available
             if (bookmark.content.type === "asset" && bookmark.content.assetType === "image" && bookmark.content.assetId) {
-                assetToDownloadUrl = getHoarderAssetUrl(bookmark.content.assetId);
+                assetToDownloadUrl = getKarakeepAssetUrl(bookmark.content.assetId);
                 assetIdToUse = bookmark.content.assetId;
             } else if (bookmark.content.type === "link") {
                  if (bookmark.content.imageAssetId) { // Prefer dedicated image asset
-                     assetToDownloadUrl = getHoarderAssetUrl(bookmark.content.imageAssetId);
+                     assetToDownloadUrl = getKarakeepAssetUrl(bookmark.content.imageAssetId);
                      assetIdToUse = bookmark.content.imageAssetId;
                  } else if (bookmark.content.screenshotAssetId) { // Fallback to screenshot
-                     assetToDownloadUrl = getHoarderAssetUrl(bookmark.content.screenshotAssetId);
+                     assetToDownloadUrl = getKarakeepAssetUrl(bookmark.content.screenshotAssetId);
                      assetIdToUse = bookmark.content.screenshotAssetId;
                  }
                  // Consider fullPageArchiveAssetId? Probably not for inline display.
@@ -645,7 +645,7 @@ export default class HoarderSyncPlugin extends Plugin {
                     assetMarkdown = `![${title || 'asset'}](${siyuanAssetPath})\n\n`;
                 } else {
                     // Fallback link if download/upload failed
-                    assetMarkdown = `[${this.i18n.assetDownloadFailed || 'Failed to download asset'}: ${this.i18n.viewOnHoarder || 'View on Hoarder'}](${assetToDownloadUrl})\n\n`;
+                    assetMarkdown = `[${this.i18n.assetDownloadFailed || 'Failed to download asset'}: ${this.i18n.viewOnKarakeep || 'View on Karakeep'}](${assetToDownloadUrl})\n\n`;
                 }
             } else if (bookmark.content.imageUrl) {
                  // If no specific asset ID but an external image URL exists (less common now?)
@@ -660,11 +660,11 @@ export default class HoarderSyncPlugin extends Plugin {
         } else { // downloadAssets is false, link externally
             let externalImageUrl: string | undefined;
             if (bookmark.content.type === "asset" && bookmark.content.assetType === "image" && bookmark.content.assetId) {
-                 externalImageUrl = getHoarderAssetUrl(bookmark.content.assetId);
+                 externalImageUrl = getKarakeepAssetUrl(bookmark.content.assetId);
              } else if (bookmark.content.type === "link" && bookmark.content.imageAssetId) {
-                 externalImageUrl = getHoarderAssetUrl(bookmark.content.imageAssetId);
+                 externalImageUrl = getKarakeepAssetUrl(bookmark.content.imageAssetId);
              } else if (bookmark.content.type === "link" && bookmark.content.screenshotAssetId) {
-                 externalImageUrl = getHoarderAssetUrl(bookmark.content.screenshotAssetId);
+                 externalImageUrl = getKarakeepAssetUrl(bookmark.content.screenshotAssetId);
              } else if (bookmark.content.imageUrl) {
                  externalImageUrl = bookmark.content.imageUrl;
              }
@@ -709,13 +709,13 @@ export default class HoarderSyncPlugin extends Plugin {
             }
         }
 
-        // 4. Link back to Hoarder
+        // 4. Link back to Karakeep
         try {
-            const hoarderBaseUrl = new URL(this.settings.apiEndpoint).origin;
-            markdown += `----\n[${this.i18n.viewOnHoarder || 'View in Hoarder'}](${hoarderBaseUrl}/dashboard/preview/${bookmark.id})`;
+            const KarakeepBaseUrl = new URL(this.settings.apiEndpoint).origin;
+            markdown += `----\n[${this.i18n.viewOnKarakeep || 'View in Karakeep'}](${KarakeepBaseUrl}/dashboard/preview/${bookmark.id})`;
         } catch (e) {
-            this.logWarn("Could not determine Hoarder base URL from endpoint:", this.settings.apiEndpoint);
-            markdown += `----\nHoarder ID: ${bookmark.id}`;
+            this.logWarn("Could not determine Karakeep base URL from endpoint:", this.settings.apiEndpoint);
+            markdown += `----\nKarakeep ID: ${bookmark.id}`;
         }
 
         return markdown;
@@ -778,7 +778,7 @@ export default class HoarderSyncPlugin extends Plugin {
 
             // 3. Prepare FormData for SiYuan upload
             const formData = new FormData();
-            formData.append('assetsDirPath', '/assets/hoarder-sync/'); // Use a dedicated subfolder
+            formData.append('assetsDirPath', '/assets/Karakeep-sync/'); // Use a dedicated subfolder
             formData.append('assets[]', new File([buffer], fileName, { type: contentType }));
             // notebook ID is required for the API call but seems to place assets globally anyway?
             // Let's include it as it might be used for permissions or future features.
@@ -798,7 +798,7 @@ export default class HoarderSyncPlugin extends Plugin {
 
             if (uploadResult.code === 0 && uploadResult.data?.succMap && uploadResult.data.succMap[fileName]) {
                 const siyuanAssetPath = uploadResult.data.succMap[fileName];
-                // The path returned by succMap is usually relative like 'assets/hoarder-sync/filename.ext'
+                // The path returned by succMap is usually relative like 'assets/Karakeep-sync/filename.ext'
                 this.logInfo(`Asset uploaded successfully to SiYuan: ${siyuanAssetPath}`);
                 return siyuanAssetPath; // Return the relative path for use in Markdown
             } else {
@@ -857,25 +857,25 @@ export default class HoarderSyncPlugin extends Plugin {
         this.setting = new Setting({
             height: "auto", // Auto height based on content
             width: "600px",
-            title: this.i18n.settingsTitle || "Hoarder Sync Settings (One-Way)",
+            title: this.i18n.settingsTitle || "Karakeep Sync Settings (One-Way)",
             confirmCallback: async () => {
                 // Validation before saving
                 if (!this.settings.apiKey) {
-                    showMessage(this.i18n.apiKeyMissing || "Hoarder API Key is required.", 3000, "error"); return;
+                    showMessage(this.i18n.apiKeyMissing || "Karakeep API Key is required.", 3000, "error"); return;
                 }
                 if (!this.settings.apiEndpoint || !this.settings.apiEndpoint.startsWith("http")) {
-                    showMessage(this.i18n.invalidApiEndpoint || "A valid Hoarder API Endpoint (starting with http/https) is required.", 4000, "error"); return;
+                    showMessage(this.i18n.invalidApiEndpoint || "A valid Karakeep API Endpoint (starting with http/https) is required.", 4000, "error"); return;
                 }
                 if (!this.settings.syncNotebookId) {
                     showMessage(this.i18n.notebookMissing || "Please select a Target SiYuan Notebook.", 3000, "error"); return;
                 }
                 await this.saveSettings();
-                showMessage(this.i18n.settingsSaved || "Hoarder settings saved.");
+                showMessage(this.i18n.settingsSaved || "Karakeep-siyuan settings saved.");
             }
         });
 
         // --- UI Element Creation Helpers ---
-        const createTextInput = (key: keyof HoarderSyncSettings, placeholder: string, type: 'text' | 'password' | 'url' = 'text'): HTMLInputElement => {
+        const createTextInput = (key: keyof KarakeepSyncSettings, placeholder: string, type: 'text' | 'password' | 'url' = 'text'): HTMLInputElement => {
             const input = document.createElement('input');
             input.type = type;
             input.className = 'b3-text-field fn__block';
@@ -887,7 +887,7 @@ export default class HoarderSyncPlugin extends Plugin {
             return input;
         };
 
-        const createNumberInput = (key: keyof HoarderSyncSettings, placeholder: string, min: number = 0): HTMLInputElement => {
+        const createNumberInput = (key: keyof KarakeepSyncSettings, placeholder: string, min: number = 0): HTMLInputElement => {
             const input = document.createElement('input');
             input.type = 'number';
             input.className = 'b3-text-field fn__block';
@@ -904,7 +904,7 @@ export default class HoarderSyncPlugin extends Plugin {
             return input;
         };
 
-        const createToggleInput = (key: keyof HoarderSyncSettings): HTMLInputElement => {
+        const createToggleInput = (key: keyof KarakeepSyncSettings): HTMLInputElement => {
             const switchElement = document.createElement('input');
             switchElement.type = 'checkbox';
             switchElement.className = 'b3-switch fn__flex-center';
@@ -915,7 +915,7 @@ export default class HoarderSyncPlugin extends Plugin {
             return switchElement;
         };
 
-         const createTextareaInput = (key: keyof HoarderSyncSettings, placeholder: string, rows: number = 2): HTMLTextAreaElement => {
+         const createTextareaInput = (key: keyof KarakeepSyncSettings, placeholder: string, rows: number = 2): HTMLTextAreaElement => {
              const textarea = document.createElement('textarea');
              textarea.className = 'b3-text-field fn__block';
              textarea.rows = rows;
@@ -936,13 +936,13 @@ export default class HoarderSyncPlugin extends Plugin {
 
         // --- Adding Settings Items ---
         this.setting.addItem({
-            title: this.i18n.apiKey || "Hoarder API Key",
-            description: this.i18n.apiKeyDesc || "Your API key from Hoarder settings.",
-            createActionElement: () => createTextInput('apiKey', this.i18n.apiKeyPlaceholder || 'Enter your Hoarder API key', 'password'),
+            title: this.i18n.apiKey || "Karakeep API Key",
+            description: this.i18n.apiKeyDesc || "Your API key from Karakeep settings.",
+            createActionElement: () => createTextInput('apiKey', this.i18n.apiKeyPlaceholder || 'Enter your Karakeep API key', 'password'),
         });
 
         this.setting.addItem({
-            title: this.i18n.apiEndpoint || "Hoarder API Endpoint",
+            title: this.i18n.apiEndpoint || "Karakeep API Endpoint",
             description: this.i18n.apiEndpointDesc || `Usually ${DEFAULT_SETTINGS.apiEndpoint} or your self-hosted URL.`,
             createActionElement: () => createTextInput('apiEndpoint', DEFAULT_SETTINGS.apiEndpoint, 'url'),
         });
@@ -993,7 +993,7 @@ export default class HoarderSyncPlugin extends Plugin {
         });
         this.setting.addItem({
             title: this.i18n.targetNotebook || "Target SiYuan Notebook",
-            description: this.i18n.targetNotebookDesc || "The notebook where Hoarder bookmarks will be saved.",
+            description: this.i18n.targetNotebookDesc || "The notebook where Karakeep bookmarks will be saved.",
             createActionElement: () => notebookSelect,
         });
 
@@ -1011,13 +1011,13 @@ export default class HoarderSyncPlugin extends Plugin {
 
         this.setting.addItem({
             title: this.i18n.updateExisting || "Update Existing Documents",
-            description: this.i18n.updateExistingDesc || "Overwrite if the Hoarder bookmark is newer (based on 'modifiedAt').",
+            description: this.i18n.updateExistingDesc || "Overwrite if the Karakeep bookmark is newer (based on 'modifiedAt').",
             createActionElement: () => createToggleInput('updateExistingFiles')
         });
 
         this.setting.addItem({
             title: this.i18n.excludeArchived || "Exclude Archived Bookmarks",
-            description: this.i18n.excludeArchivedDesc || "Don't sync bookmarks marked as archived in Hoarder.",
+            description: this.i18n.excludeArchivedDesc || "Don't sync bookmarks marked as archived in Karakeep.",
             createActionElement: () => createToggleInput('excludeArchived')
         });
 
@@ -1029,7 +1029,7 @@ export default class HoarderSyncPlugin extends Plugin {
 
         this.setting.addItem({
             title: this.i18n.downloadAssets || "Download Assets Locally",
-            description: this.i18n.downloadAssetsDesc || "Download images/assets into SiYuan. Requires Hoarder server access.",
+            description: this.i18n.downloadAssetsDesc || "Download images/assets into SiYuan. Requires Karakeep server access.",
             createActionElement: () => createToggleInput('downloadAssets')
         });
 
@@ -1043,7 +1043,7 @@ export default class HoarderSyncPlugin extends Plugin {
         this.syncButton.disabled = this.isSyncing;
         this.syncButton.addEventListener('click', async () => {
              // Re-trigger the command callback for consistency
-             this.commands.find(cmd => cmd.langKey === 'syncHoarderBookmarks')?.callback();
+             this.commands.find(cmd => cmd.langKey === 'syncKarakeepBookmarks')?.callback();
         });
 
         this.syncStatusElement = document.createElement('div');
@@ -1081,4 +1081,4 @@ export default class HoarderSyncPlugin extends Plugin {
         }
     }
 
-} // Fin de la clase HoarderSyncPlugin
+} // Fin de la clase KarakeepSyncSettings
