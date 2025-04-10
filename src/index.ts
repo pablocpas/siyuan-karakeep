@@ -246,37 +246,39 @@ export default class HoarderSyncPlugin extends Plugin {
                         if (updateThisDoc) {
                             // --- Actualizar (Borrar y Recrear) ---
                             console.log(`Updating document ${existingDocId} for bookmark ${bookmark.id}`);
+                                                            // 2. Crear el nuevo documento (usando fetchSyncPost)
+                                                                // 2. Crear el nuevo documento (usando fetchSyncPost)
                             try {
-                                // 1. Borrar el documento existente
-                                const deleteResult = await fetchPost('/api/filetree/removeDocByID', { id: existingDocId });
-                                if (deleteResult.code !== 0) {
-                                     // Si falla el borrado, no intentar crear para evitar duplicados (con mismo path)
-                                     console.error(`Failed to delete existing document ${existingDocId} for update [${deleteResult.code}]: ${deleteResult.msg}`);
-                                     skippedCount++;
-                                     continue; // Saltar al siguiente bookmark
-                                }
-
-                                // 2. Crear el nuevo documento
                                 const markdownContent = await this.formatBookmarkAsMarkdown(bookmark, title);
                                 const createParams = {
-                                    notebook: notebookId, // Usar la variable local
+                                    notebook: notebookId,
                                     path: safeDocPath,
                                     markdown: markdownContent,
                                 };
-                                console.log("Creating doc with params:", JSON.stringify(createParams));
-                                const createResult = await fetchPost('/api/filetree/createDocWithMd', createParams);
+                                console.log("Recreating doc with params (using fetchSyncPost):", JSON.stringify(createParams));
 
-                                if (createResult.code === 0 && createResult.data) {
-                                    // CORRECTO: createResult.data es el ID directamente
-                                    const newDocId = createResult.data;
+                                // *** USA fetchSyncPost ***
+                                const createResult = await fetchSyncPost('/api/filetree/createDocWithMd', createParams);
+                                console.log(`[Debug] fetchSyncPost completed for RECREATION of ${bookmark.id}. Raw result:`, createResult);
+
+                                // La verificación ahora debería funcionar directamente
+                                if (createResult?.code === 0 && createResult.data) {
+                                    const newDocId = createResult.data as string; // La API devuelve string aquí
+                                    console.log(`Document recreated via API for bookmark ${bookmark.id}, received ID directly: ${newDocId}.`);
                                     await this.setSiYuanAttributes(newDocId, bookmark, title);
                                     updatedCount++;
-                                    console.log(`Successfully updated bookmark ${bookmark.id} as new doc ${newDocId}`);
+                                    console.log(`Successfully processed and attributed (via fetchSyncPost) UPDATED bookmark ${bookmark.id} as new doc ${newDocId}`);
                                 } else {
-                                    console.error(`Failed to recreate document for bookmark ${bookmark.id} [${createResult.code}]: ${createResult.msg}`);
-                                    skippedCount++; // Contar como saltado si la recreación falla
+                                        // fetchSyncPost falló o devolvió un código de error
+                                    const errorCode = createResult?.code ?? 'N/A';
+                                    const errorMsg = createResult?.msg ?? 'fetchSyncPost failed or returned unexpected result during recreation';
+                                    console.error(`Failed to recreate document using fetchSyncPost for bookmark ${bookmark.id} [${errorCode}]: ${errorMsg}`);
+                                    skippedCount++;
                                 }
-                            } catch (e) { console.error(`Network error during delete/recreate for bookmark ${bookmark.id}:`, e); skippedCount++; }
+                            } catch (e: any) { // Catch para errores en formatBookmarkAsMarkdown o fetchSyncPost
+                                console.error(`Error during document recreation process (using fetchSyncPost) for bookmark ${bookmark.id}:`, e.message || e);
+                                skippedCount++;
+                            }
                         } else {
                             // --- Saltar documento existente ---
                              console.log(`Skipping existing document ${existingDocId} (up-to-date or update disabled).`);
@@ -288,25 +290,34 @@ export default class HoarderSyncPlugin extends Plugin {
                         try {
                             const markdownContent = await this.formatBookmarkAsMarkdown(bookmark, title);
                             const createParams = {
-                                notebook: notebookId, // Usar la variable local
+                                notebook: notebookId,
                                 path: safeDocPath,
                                 markdown: markdownContent,
                             };
-                            console.log("Creating doc with params:", JSON.stringify(createParams));
-                            const createResult = await fetchPost('/api/filetree/createDocWithMd', createParams);
+                            console.log("Creating doc with params (using fetchSyncPost):", JSON.stringify(createParams));
 
-                            if (createResult.code === 0 && createResult.data) {
-                                // CORRECTO: createResult.data es el ID directamente
-                                const newDocId = createResult.data;
+                            // *** USA fetchSyncPost ***
+                            const createResult = await fetchSyncPost('/api/filetree/createDocWithMd', createParams);
+                            console.log(`[Debug] fetchSyncPost completed for CREATION of ${bookmark.id}. Raw result:`, createResult);
+
+                            // La verificación ahora debería funcionar directamente
+                            if (createResult?.code === 0 && createResult.data) {
+                                const newDocId = createResult.data as string; // La API devuelve string aquí
+                                console.log(`Document created via API for bookmark ${bookmark.id}, received ID directly: ${newDocId}.`);
                                 await this.setSiYuanAttributes(newDocId, bookmark, title);
                                 createdCount++;
-                                console.log(`Successfully created bookmark ${bookmark.id} as new doc ${newDocId}`);
+                                console.log(`Successfully processed and attributed (via fetchSyncPost) bookmark ${bookmark.id} as new doc ${newDocId}`);
                             } else {
-                                // La API no sobreescribe, si falla aquí puede ser por path inválido u otro error
-                                console.error(`Failed to create document for bookmark ${bookmark.id} [${createResult.code}]: ${createResult.msg}. Path: ${safeDocPath}`);
-                                skippedCount++; // Contar como saltado si falla la creación
+                                // fetchSyncPost falló o devolvió un código de error
+                                const errorCode = createResult?.code ?? 'N/A';
+                                const errorMsg = createResult?.msg ?? 'fetchSyncPost failed or returned unexpected result';
+                                console.error(`Failed to create document using fetchSyncPost for bookmark ${bookmark.id} [${errorCode}]: ${errorMsg}. Path: ${safeDocPath}`);
+                                skippedCount++;
                             }
-                        } catch (e) { console.error(`Network error creating document for bookmark ${bookmark.id}:`, e); skippedCount++; }
+                        } catch (e: any) { // Catch para errores en formatBookmarkAsMarkdown o fetchSyncPost
+                            console.error(`Error during document creation process (using fetchSyncPost) for bookmark ${bookmark.id}:`, e.message || e);
+                            skippedCount++;
+                        }
                     }
                 } // Fin for bookmarks
             } while (cursor); // Fin do...while
