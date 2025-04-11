@@ -89,6 +89,10 @@ module.exports = (env, argv) => {
                     ],
                 },
                 {
+                    test: /\.svg$/,
+                    type: 'asset/source',
+                },
+                {
                     test: /\.scss$/,
                     include: [path.resolve(__dirname, "src")],
                     use: [
