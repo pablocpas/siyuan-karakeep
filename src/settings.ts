@@ -50,7 +50,7 @@ export async function saveSettings(plugin: KarakeepSyncPlugin): Promise<void> {
 // --- Settings UI Setup ---
 export function setupSettingsDialog(plugin: KarakeepSyncPlugin): void {
     plugin.setting = new Setting({
-        height: "60vh",
+        height: "75vh",
         width: "600px",
         title: plugin.i18n.settingsTitle || "Karakeep Sync Settings (One-Way)",
         confirmCallback: async () => {
